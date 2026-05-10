@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Integra Engenharia | Dashboard Curva S</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --navy: #061426;
+      --navy2: #0c2238;
+      --orange: #ff6b00;
+      --blue: #1473ff;
+      --green: #18a64a;
+      --red: #ef233c;
+      --purple: #7c3cff;
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #101828;
+      --muted: #667085;
+      --line: #e5eaf2;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+    .sidebar {
+      background: linear-gradient(180deg, #061426, #0b2035);
+      color: white;
+      padding: 24px 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 34px; }
+    .logo {
+      width: 46px; height: 46px; border-radius: 12px;
+      background: var(--orange); display: grid; place-items: center;
+      font-weight: 900; font-size: 22px;
+    }
+    .brand h1 { font-size: 24px; margin: 0; letter-spacing: 1px; }
+    .brand span { font-size: 12px; letter-spacing: 5px; opacity: .8; }
+    .menu { display: flex; flex-direction: column; gap: 10px; }
+    .menu button {
+      border: 0; color: white; background: transparent; padding: 14px 16px;
+      border-radius: 10px; display: flex; align-items: center; gap: 12px;
+      font-size: 15px; cursor: pointer; text-align: left;
+    }
+    .menu button.active, .menu button:hover { background: var(--orange); }
+    .wireframe {
+      position: absolute; bottom: 105px; left: 20px; right: 20px;
+      height: 190px; opacity: .18; border: 1px solid white; border-radius: 20px;
+      background: repeating-linear-gradient(90deg, transparent 0 22px, rgba(255,255,255,.2) 23px 24px),
+                  repeating-linear-gradient(0deg, transparent 0 22px, rgba(255,255,255,.18) 23px 24px);
+      transform: skewY(-8deg);
+    }
+    .userbox {
+      position: absolute; bottom: 22px; left: 18px; right: 18px;
+      border: 1px solid rgba(255,255,255,.18); border-radius: 14px; padding: 14px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--orange); display:grid; place-items:center; font-weight:800; }
+
+    main { padding: 26px; }
+    .topbar { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:22px; }
+    h2 { font-size: 32px; margin: 0; }
+    .subtitle { margin: 8px 0 0; color: var(--muted); }
+    .controls { display:flex; gap:12px; flex-wrap:wrap; justify-content:flex-end; }
+    .project-controls { display:flex; align-items:flex-start; gap:18px; flex-wrap:wrap; justify-content:flex-end; }
+    .project-controls label { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .project-controls select, .project-controls input { min-width: 210px; margin-top: 6px; }
+    .compact-actions { margin-top: -10px; }
+    .bell { position: relative; width: 46px; height: 46px; display:grid; place-items:center; font-size:24px; }
+    .bell span { position:absolute; right:2px; top:0; background:var(--orange); color:white; font-size:12px; width:20px; height:20px; border-radius:50%; display:grid; place-items:center; font-weight:900; }
+    .btn {
+      border: 1px solid var(--line); background: white; padding: 13px 18px; border-radius: 10px;
+      cursor:pointer; font-weight: 700; color: var(--navy); box-shadow: 0 6px 20px rgba(16,24,40,.06);
+    }
+    .btn.orange { background: var(--orange); border-color: var(--orange); color: white; }
+    .btn.dark { background: var(--navy); color: white; }
+    input[type="file"] { display:none; }
+
+    .cards { display:grid; grid-template-columns: repeat(4, 1fr); gap:18px; margin-bottom:20px; }
+    .card {
+      background: var(--card); border:1px solid var(--line); border-radius:16px; padding:22px;
+      box-shadow: 0 10px 30px rgba(16,24,40,.07);
+    }
+    .kpi-title { font-size:13px; font-weight:800; color:var(--navy); text-transform:uppercase; }
+    .kpi { font-size:34px; font-weight:900; margin:14px 0 8px; }
+    .blue { color: var(--blue); } .orangeText { color: var(--orange); } .green { color: var(--green); } .red { color: var(--red); } .purple { color: var(--purple); }
+    .muted { color: var(--muted); font-size:14px; }
+    .status-card { display:flex; justify-content:space-between; align-items:center; }
+    .status-ring { width:78px; height:78px; border-radius:50%; background:conic-gradient(var(--red) 0 78%, #eef2f7 78% 100%); position:relative; }
+    .status-ring:after { content:''; position:absolute; inset:10px; border-radius:50%; background:white; }
+
+    .grid { display:grid; grid-template-columns: 1fr 340px; gap:18px; }
+    .chart-card { min-height: 465px; }
+    .chart-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 10px; }
+    .chart-wrap { height: 390px; }
+    select, input, textarea {
+      border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; font-family: inherit; background:white;
+    }
+
+    .summary-card { background: linear-gradient(180deg, #0b2138, #061426); color:white; }
+    .summary-row { display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid rgba(255,255,255,.09); font-size:14px; }
+    .donut { width:160px; height:160px; border-radius:50%; margin: 16px auto; display:grid; place-items:center; background: conic-gradient(var(--green) 0 68%, var(--orange) 68% 90%, #9aa4b2 90% 100%); }
+    .donut-inner { width:98px; height:98px; background:#0b2138; border-radius:50%; display:grid; place-items:center; text-align:center; font-weight:900; }
+
+    .tables { display:grid; grid-template-columns: repeat(3, 1fr); gap:18px; margin-top:18px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { text-align:left; padding:11px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+    th { font-size:12px; color:var(--muted); }
+    td[contenteditable="true"] { background:#fffdf8; outline: 1px dashed transparent; }
+    td[contenteditable="true"]:focus { outline-color: var(--orange); background:#fff6ec; }
+    .section-title { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-weight:900; }
+    .pill { background:#eef2f7; border-radius:99px; padding:4px 10px; font-size:12px; color:#344054; }
+    .progress { height:8px; background:#e8edf5; border-radius:99px; overflow:hidden; min-width:70px; }
+    .progress span { display:block; height:100%; background:var(--orange); border-radius:99px; }
+
+    .editor { margin-top:18px; }
+    .formgrid { display:grid; grid-template-columns: repeat(6, 1fr); gap:10px; }
+    .formgrid input, .formgrid select { width:100%; }
+    .wide { grid-column: span 2; }
+
+    .footer { display:flex; justify-content:center; gap:60px; color:var(--muted); font-size:12px; padding:26px 0 6px; }
+
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { position: relative; height: auto; }
+      .wireframe,.userbox { display:none; }
+      .cards,.grid,.tables { grid-template-columns:1fr; }
+      .formgrid { grid-template-columns:1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="reportArea">
+    <aside class="sidebar">
+      <div class="brand"><div class="logo">I</div><div><h1>INTEGRA</h1><span>ENGENHARIA</span></div></div>
+      <div class="menu">
+        <button class="active">⌂ Dashboard</button><button>▣ Cronograma</button><button>⌁ Curva S</button><button>☷ Atividades</button><button>⇪ Importação</button><button>▤ Relatórios</button><button>⚙ Configurações</button>
+      </div>
+      <div class="wireframe"></div>
+      <div class="userbox"><div class="avatar">ME</div><div><b>Marco Engenharia</b><br><small>Administrador</small></div></div>
+    </aside>
+
+    <main>
+      <section class="topbar">
+        <div><h2>Dashboard</h2><p class="subtitle">Visão geral do avanço físico da obra</p></div>
+        <div class="project-controls">
+          <label>🏢 Obra selecionada<br><select id="obraSelecionada"><option>Restauração do Viaduto Paulo de Frontin</option><option>Restauração Estrutural</option><option>Restauração de Pilares</option></select></label>
+          <label>📅 Data de referência<br><input type="date" value="2024-05-24"></label>
+          <div class="bell">🔔<span>3</span></div>
+        </div>
+      </section>
+
+      <section class="topbar compact-actions">
+        <div></div>
+        <div class="controls">
+          <label class="btn" for="excelFile">⇧ Importar Excel</label><input id="excelFile" type="file" accept=".xlsx,.xls" />
+          <button class="btn dark" onclick="downloadTemplate()">Modelo Excel</button>
+          <button class="btn orange" onclick="exportPDF()">Exportar PDF</button>
+        </div>
+      </section>
+
+      <section class="cards">
+        <div class="card"><div class="kpi-title">Avanço planejado</div><div class="kpi blue" id="kpiPlan">70,0%</div><div class="muted">Na data de referência</div></div>
+        <div class="card"><div class="kpi-title">Avanço realizado</div><div class="kpi orangeText" id="kpiReal">68,0%</div><div class="muted">Na data de referência</div></div>
+        <div class="card"><div class="kpi-title">Diferença</div><div class="kpi purple" id="kpiDiff">-2,0%</div><div class="muted">Realizado x planejado</div></div>
+        <div class="card status-card"><div><div class="kpi-title">Status geral</div><div class="kpi green" id="kpiStatus">ATRASADA</div><div class="muted" id="statusText">Obra abaixo do planejado</div></div><div class="status-ring"></div></div>
+      </section>
+
+      <section class="grid">
+        <div class="card chart-card">
+          <div class="chart-head"><b>CURVA S - AVANÇO FÍSICO ACUMULADO (%)</b><select id="viewMode" onchange="renderAll()"><option>Semanas</option><option>Datas</option></select></div>
+          <div class="chart-wrap"><canvas id="sChart"></canvas></div>
+        </div>
+        <div>
+          <div class="card summary-card">
+            <b>RESUMO DA OBRA</b>
+            <div class="donut" id="donut"><div class="donut-inner"><div><span id="donutText">68%</span><br><small>Concluído</small></div></div></div>
+            <div class="summary-row"><span>Concluído</span><b id="sumDone">68%</b></div>
+            <div class="summary-row"><span>Em execução</span><b id="sumRun">22%</b></div>
+            <div class="summary-row"><span>Não iniciado</span><b id="sumNot">10%</b></div>
+            <div class="summary-row"><span>Período do projeto</span><b>01/03/2024 a 10/05/2024</b></div>
+            <div class="summary-row"><span>Duração total</span><b>70 dias</b></div>
+            <div class="summary-row"><span>Dias decorridos</span><b>54 dias</b></div>
+            <div class="summary-row"><span>Dias restantes</span><b>16 dias</b></div>
+            <div class="summary-row"><span>Total de atividades</span><b id="sumTotal">0</b></div>
+          </div>
+          <div class="card" style="margin-top:18px">
+            <b>AÇÕES RÁPIDAS</b><br><br>
+            <button class="btn" onclick="document.getElementById('excelFile').click()">⇧ Importar Planilha</button>
+            <button class="btn orange" onclick="exportPDF()">▣ Exportar PDF</button>
+            <button class="btn" style="margin-top:10px;width:100%" onclick="exportPDF()">⌁ Gerar Relatório Completo</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="tables">
+        <div class="card"><div class="section-title green">ATIVIDADES CONCLUÍDAS <span class="pill" id="countDone">0</span></div><table><thead><tr><th>Atividade</th><th>Setor</th><th>Conclusão</th><th>Peso</th></tr></thead><tbody id="doneBody"></tbody></table></div>
+        <div class="card"><div class="section-title orangeText">ATIVIDADES EM EXECUÇÃO <span class="pill" id="countRun">0</span></div><table><thead><tr><th>Atividade</th><th>Setor</th><th>Progresso</th><th>Peso</th></tr></thead><tbody id="runBody"></tbody></table></div>
+        <div class="card"><div class="section-title">ATIVIDADES NÃO INICIADAS <span class="pill" id="countNot">0</span></div><table><thead><tr><th>Atividade</th><th>Setor</th><th>Previsão</th><th>Peso</th></tr></thead><tbody id="notBody"></tbody></table></div>
+      </section>
+
+      <section class="card editor">
+        <div class="section-title">Editar / adicionar atividade no sistema <button class="btn orange" onclick="addActivity()">Adicionar etapa</button></div>
+        <div class="formgrid">
+          <input id="obra" placeholder="Obra" value="Restauração Estrutural" />
+          <input id="setor" placeholder="Setor" />
+          <input id="local" placeholder="Local" />
+          <input class="wide" id="atividade" placeholder="Atividade" />
+          <select id="dificuldade"><option>Leve</option><option selected>Média</option><option>Pesada</option><option>Crítica</option></select>
+          <input id="inicio" type="date" />
+          <input id="fim" type="date" />
+          <input id="realizado" type="number" min="0" max="100" placeholder="Realizado %" />
+        </div>
+      </section>
+
+      <section class="card editor">
+        <div class="section-title">Base importada/editável</div>
+        <table><thead><tr><th>Obra</th><th>Setor</th><th>Local</th><th>Atividade</th><th>Dificuldade</th><th>Peso</th><th>Início</th><th>Fim</th><th>Realizado</th><th>Ação</th></tr></thead><tbody id="mainTable"></tbody></table>
+      </section>
+    <footer class="footer"><span>© 2024 Integra Engenharia. Todos os direitos reservados.</span><b>INTEGRA ENGENHARIA</b><span>v1.0.0</span></footer>
+    </main>
+  </div>
+
+<script>
+let activities = [
+  {obra:'Restauração Estrutural', setor:'Pilar P1', local:'Eixo 01', atividade:'Escariação do concreto', dificuldade:'Pesada', inicio:'2024-03-01', fim:'2024-03-08', realizado:100},
+  {obra:'Restauração Estrutural', setor:'Pilar P1', local:'Eixo 01', atividade:'Tratamento da armadura', dificuldade:'Média', inicio:'2024-03-09', fim:'2024-03-16', realizado:100},
+  {obra:'Restauração Estrutural', setor:'Pilar P2', local:'Eixo 02', atividade:'Recomposição estrutural', dificuldade:'Crítica', inicio:'2024-03-17', fim:'2024-03-28', realizado:60},
+  {obra:'Restauração Estrutural', setor:'Pilar P2', local:'Eixo 02', atividade:'Pintura de proteção', dificuldade:'Leve', inicio:'2024-03-29', fim:'2024-04-10', realizado:35},
+  {obra:'Restauração Estrutural', setor:'Pilar P3', local:'Eixo 03', atividade:'Impermeabilização', dificuldade:'Média', inicio:'2024-04-12', fim:'2024-04-22', realizado:0},
+  {obra:'Restauração Estrutural', setor:'Geral', local:'Obra', atividade:'Limpeza final', dificuldade:'Leve', inicio:'2024-04-23', fim:'2024-05-10', realizado:0}
+];
+let chart;
+const weightMap = { 'Leve': 1, 'Média': 2, 'Media': 2, 'Pesada': 3, 'Crítica': 4, 'Critica': 4 };
+function peso(a){ return Number(a.peso) || weightMap[a.dificuldade] || 2; }
+function pct(v){ return (Number(v)||0).toFixed(1).replace('.', ',') + '%'; }
+function normKey(k){ return String(k||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim(); }
+function parseDate(v){ if(!v) return ''; if(typeof v === 'number'){ const d = XLSX.SSF.parse_date_code(v); return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`; } return String(v).slice(0,10); }
+function calcReal(){ const total = activities.reduce((s,a)=>s+peso(a),0)||1; return activities.reduce((s,a)=>s+peso(a)*(Number(a.realizado)||0)/100,0)/total*100; }
+function plannedCurve(){ return [5,10,20,30,40,55,70,85,95,100]; }
+function realCurve(){ const r = calcReal(); return plannedCurve().map((p,i)=> Math.min(100, Math.max(0, p * (r/70) + (i>5?3:0)))); }
+function renderAll(){ renderKPIs(); renderChart(); renderTables(); renderMainTable(); }
+function renderKPIs(){
+  const plan=70, real=calcReal(), diff=real-plan;
+  document.getElementById('kpiPlan').textContent=pct(plan);
+  document.getElementById('kpiReal').textContent=pct(real);
+  document.getElementById('kpiDiff').textContent=pct(diff);
+  const st=document.getElementById('kpiStatus');
+  st.textContent = diff < -1 ? 'ATRASADA' : diff > 1 ? 'ADIANTADA' : 'EM DIA';
+  st.className = 'kpi ' + (diff < -1 ? 'red' : diff > 1 ? 'blue' : 'green');
+  document.getElementById('statusText').textContent = diff < -1 ? 'Obra abaixo do planejado' : diff > 1 ? 'Obra acima do planejado' : 'Obra dentro do planejado';
+  const done=activities.filter(a=>Number(a.realizado)>=100).length, run=activities.filter(a=>Number(a.realizado)>0&&Number(a.realizado)<100).length, not=activities.filter(a=>!Number(a.realizado)).length, total=activities.length||1;
+  document.getElementById('sumDone').textContent=Math.round(done/total*100)+'%'; document.getElementById('sumRun').textContent=Math.round(run/total*100)+'%'; document.getElementById('sumNot').textContent=Math.round(not/total*100)+'%'; document.getElementById('sumTotal').textContent=activities.length;
+  document.getElementById('donutText').textContent=Math.round(real)+'%';
+  document.getElementById('donut').style.background=`conic-gradient(var(--green) 0 ${real}%, var(--orange) ${real}% ${Math.min(100,real+22)}%, #9aa4b2 ${Math.min(100,real+22)}% 100%)`;
+}
+function renderChart(){
+  const labels = plannedCurve().map((_,i)=>'SEMANA '+(i+1));
+  const dataPlan = plannedCurve();
+  const dataReal = realCurve();
+  const ctx=document.getElementById('sChart');
+  if(chart) chart.destroy();
+  chart=new Chart(ctx,{type:'line',data:{labels,datasets:[
+    {label:'Planejado',data:dataPlan,borderColor:'#1473ff',backgroundColor:'rgba(20,115,255,.08)',tension:.42,pointRadius:6,pointHoverRadius:8,fill:false},
+    {label:'Realizado',data:dataReal,borderColor:'#ff6b00',backgroundColor:'rgba(255,107,0,.16)',tension:.42,pointRadius:6,pointHoverRadius:8,fill:true}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'},tooltip:{backgroundColor:'#061426',padding:12}},scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'},grid:{color:'#e6ebf3'}},x:{grid:{display:false}}}}});
+}
+function row(a, type){
+  if(type==='run') return `<tr><td>${a.atividade}</td><td>${a.setor}</td><td><div class="progress"><span style="width:${a.realizado}%"></span></div> ${a.realizado}%</td><td>${peso(a)}%</td></tr>`;
+  return `<tr><td>${a.atividade}</td><td>${a.setor}</td><td>${type==='done'?'100%':(a.inicio||'-')}</td><td>${peso(a)}%</td></tr>`;
+}
+function renderTables(){
+  const done=activities.filter(a=>Number(a.realizado)>=100), run=activities.filter(a=>Number(a.realizado)>0&&Number(a.realizado)<100), not=activities.filter(a=>!Number(a.realizado));
+  document.getElementById('doneBody').innerHTML=done.map(a=>row(a,'done')).join(''); document.getElementById('runBody').innerHTML=run.map(a=>row(a,'run')).join(''); document.getElementById('notBody').innerHTML=not.map(a=>row(a,'not')).join('');
+  document.getElementById('countDone').textContent=done.length; document.getElementById('countRun').textContent=run.length; document.getElementById('countNot').textContent=not.length;
+}
+function renderMainTable(){
+  document.getElementById('mainTable').innerHTML=activities.map((a,i)=>`<tr>
+    ${['obra','setor','local','atividade','dificuldade','inicio','fim','realizado'].map(k=>`<td contenteditable="true" onblur="editCell(${i},'${k}',this.textContent)">${a[k]??''}</td>`).slice(0,4).join('')}
+    <td contenteditable="true" onblur="editCell(${i},'dificuldade',this.textContent)">${a.dificuldade}</td><td>${peso(a)}</td>
+    <td contenteditable="true" onblur="editCell(${i},'inicio',this.textContent)">${a.inicio||''}</td><td contenteditable="true" onblur="editCell(${i},'fim',this.textContent)">${a.fim||''}</td><td contenteditable="true" onblur="editCell(${i},'realizado',this.textContent)">${a.realizado||0}</td>
+    <td><button class="btn" onclick="delActivity(${i})">Excluir</button></td></tr>`).join('');
+}
+function editCell(i,k,v){ activities[i][k] = k==='realizado' ? Math.max(0,Math.min(100,Number(v)||0)) : v.trim(); renderAll(); }
+function delActivity(i){ activities.splice(i,1); renderAll(); }
+function addActivity(){
+  activities.push({obra:obra.value,setor:setor.value,local:local.value,atividade:atividade.value||'Nova atividade',dificuldade:dificuldade.value,inicio:inicio.value,fim:fim.value,realizado:Number(realizado.value)||0});
+  renderAll();
+}
+document.getElementById('excelFile').addEventListener('change', e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=evt=>{
+    const wb=XLSX.read(evt.target.result,{type:'binary'}); const ws=wb.Sheets[wb.SheetNames[0]]; const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+    activities = rows.map(r=>{
+      const m={}; Object.keys(r).forEach(k=>m[normKey(k)]=r[k]);
+      return {obra:m.OBRA||'', setor:m.SETOR||'', local:m.LOCAL||'', atividade:m.ATIVIDADE||m.SERVICO||'', dificuldade:m.DIFICULDADE||m.TIPO||'Média', peso:m.PESO||'', inicio:parseDate(m.INICIO||m['DATA INICIO']), fim:parseDate(m.FIM||m['DATA FIM']), realizado:Number(String(m.REALIZADO||m['% REALIZADO']||0).replace('%','').replace(',','.'))||0};
+    }).filter(a=>a.atividade);
+    renderAll();
+  };
+  reader.readAsBinaryString(file);
+});
+function downloadTemplate(){
+  const data=[{OBRA:'Restauração Estrutural',SETOR:'Pilar P1',LOCAL:'Eixo 01',ATIVIDADE:'Escariação do concreto',DIFICULDADE:'Pesada',PESO:'',INICIO:'2024-03-01',FIM:'2024-03-08',REALIZADO:50,OBS:''}];
+  const ws=XLSX.utils.json_to_sheet(data); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Importação'); XLSX.writeFile(wb,'modelo_importacao_curva_s.xlsx');
+}
+async function exportPDF(){
+  const { jsPDF } = window.jspdf; const el=document.getElementById('reportArea');
+  const canvas=await html2canvas(el,{scale:1.4,useCORS:true}); const img=canvas.toDataURL('image/png');
+  const pdf=new jsPDF('l','mm','a4'); const w=297, h=canvas.height*w/canvas.width; pdf.addImage(img,'PNG',0,0,w,h); pdf.save('relatorio_curva_s.pdf');
+}
+renderAll();
+</script>
+</body>
+</html>
